@@ -1,5 +1,71 @@
 # Docker Basics
 
+## Completed app: Dungeon Party Generator
+
+This app creates a party of fantasy adventurers, assigns roles, and rolls six
+ability scores per hero by rolling four six-sided dice and discarding the lowest.
+It uses the **Rich** pip package to print a character table and Python's `print()`
+to display the environment, dice rules, and party summary.
+
+### Build and run
+
+From the repository root, with Docker running:
+
+```sh
+docker build -t myapp .
+docker run --rm myapp
+```
+
+The app prints its party and exits successfully; it needs no input or server port.
+
+### Build argument and environment variable
+
+`APP_ENV` is a Docker build argument whose value becomes the container's `APP_ENV`
+environment variable. The app reads it with `os.getenv()` and prints it. Its default
+is `development`, so the assignment's basic build command also works.
+
+```sh
+docker build --build-arg APP_ENV=production -t myapp-production .
+docker run --rm myapp-production
+docker run --rm -e APP_ENV=staging myapp-production
+```
+
+The last command overrides the saved build value at runtime.
+
+### Choose party size and reproduce a party
+
+```sh
+docker run --rm myapp python src/app.py --count 4 --seed 42
+```
+
+`--count` accepts 1 through 6 and defaults to 3. Reusing a seed reproduces the party
+with the same Python version. Omitting the seed generates a fresh party.
+
+### Tests and Docker verification
+
+```sh
+docker run --rm myapp python -m unittest discover -s test -v
+```
+
+The [Docker workflow](https://github.com/ethandrew2000/docker-basics/actions/workflows/docker.yml)
+builds the image, runs the tests inside it, and verifies default startup, a custom
+build argument, runtime environment overrides, repeatable seeded output, and
+invalid input. Open a workflow run to see the actual Docker build and run logs.
+
+The Dockerfile copies `requirements.txt` and installs it before copying `src/` and
+`test/`, allowing Docker to reuse dependencies when only the app code changes.
+`.dockerignore` keeps Git metadata, local environments, and caches out of the build.
+
+To run locally without Docker:
+
+```sh
+python -m pip install -r requirements.txt
+python src/app.py --seed 42
+python -m unittest discover -s test -v
+```
+
+The original assignment instructions follow.
+
 ## Creating a Dockerfile for a App
 
 In this assignment, you will create a Dockerfile for a small application. Docker allows you to package your application along with its dependencies into a container, making it easy to deploy and run consistently across different environments.

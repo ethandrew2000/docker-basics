@@ -1,0 +1,48 @@
+name: Docker build and run
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Docker version
+        run: docker --version
+      - name: Build the default image
+        run: docker build -t myapp .
+      - name: Run unit tests inside the image
+        run: docker run --rm myapp python -m unittest discover -s test -v
+      - name: Verify the default container runs
+        run: |
+          set -euo pipefail
+          docker run --rm myapp | tee default-output.txt
+          grep -F 'Environment: development' default-output.txt
+          grep -F 'Your party of 3 is ready' default-output.txt
+      - name: Verify build argument becomes an environment variable
+        run: |
+          set -euo pipefail
+          docker build --build-arg APP_ENV=production -t myapp-production .
+          docker run --rm myapp-production | tee production-output.txt
+          grep -F 'Environment: production' production-output.txt
+      - name: Verify runtime configuration and repeatable parties
+        run: |
+          set -euo pipefail
+          docker run --rm -e APP_ENV=staging myapp-production python src/app.py --count 2 --seed 42 | tee seeded-output.txt
+          grep -F 'Environment: staging' seeded-output.txt
+          grep -F 'Your party of 2 is ready' seeded-output.txt
+          docker run --rm -e APP_ENV=staging myapp-production python src/app.py --count 2 --seed 42 > repeated-output.txt
+          diff seeded-output.txt repeated-output.txt
+      - name: Verify invalid input exits with an error
+        run: |
+          if docker run --rm myapp python src/app.py --count 0; then
+            echo 'Expected invalid party size to fail'
+            exit 1
+          fi
